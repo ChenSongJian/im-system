@@ -42,11 +42,25 @@ func (user *User) online() {
 }
 
 func (user *User) offline() {
+	user.Server.MapLock.Lock()
+	// Removes user from map when user going offline
+	delete(user.Server.OnlineUserMap, user.Name)
+	user.Server.MapLock.Unlock()
 	user.Server.Broadcast(user, "See yall next time!")
 }
 
 func (user *User) processMessage(message string) {
-	user.Server.Broadcast(user, message)
+	if message == "/online" {
+		user.Server.MapLock.Lock()
+		// Add new user into OnlineUserMap and store the user info
+		for key, _ := range user.Server.OnlineUserMap {
+			onlineUserMessage := "[" + key + "]" + key + ": is online"
+			user.Channel <- onlineUserMessage
+		}
+		user.Server.MapLock.Unlock()
+	} else {
+		user.Server.Broadcast(user, message)
+	}
 }
 
 func (user *User) listenMessage() {
