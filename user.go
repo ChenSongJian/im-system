@@ -9,9 +9,10 @@ type User struct {
 	Address    string
 	Channel    chan string
 	Connection net.Conn
+	Server     *Server // using pointer to use same lock across all users
 }
 
-func NewUser(connection net.Conn) *User {
+func NewUser(connection net.Conn, server *Server) *User {
 	// Using address as username in v2
 	user_address := connection.RemoteAddr().String()
 	user := &User{
@@ -19,12 +20,33 @@ func NewUser(connection net.Conn) *User {
 		Address:    user_address,
 		Channel:    make(chan string),
 		Connection: connection,
+		Server:     server,
 	}
 
 	// start goroutine to listen incoming message
 	go user.listenMessage()
 
 	return user
+}
+
+func (user *User) online() {
+
+	user.Server.MapLock.Lock()
+	// Add new user into OnlineUserMap and store the user info
+	user.Server.OnlineUserMap[user.Name] = user
+	user.Server.MapLock.Unlock()
+
+	// Broadcast message
+	user.Server.Broadcast(user, "Hello World!")
+
+}
+
+func (user *User) offline() {
+	user.Server.Broadcast(user, "See yall next time!")
+}
+
+func (user *User) processMessage(message string) {
+	user.Server.Broadcast(user, message)
 }
 
 func (user *User) listenMessage() {
