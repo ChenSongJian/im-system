@@ -47,15 +47,9 @@ func (server *Server) ListenBroadcast() {
 
 func (server *Server) handleConnection(connection net.Conn) {
 	// Create new user from the connection
-	user := NewUser(connection)
+	user := NewUser(connection, server)
 
-	server.MapLock.Lock()
-	// Add new user into OnlineUserMap and store the user info
-	server.OnlineUserMap[user.Name] = user
-	server.MapLock.Unlock()
-
-	// Broadcast message
-	server.Broadcast(user, "Hello World!")
+	user.online()
 
 	go func() {
 		buffer := make([]byte, 4096)
@@ -63,7 +57,7 @@ func (server *Server) handleConnection(connection net.Conn) {
 			messageLen, err := connection.Read(buffer)
 			// Connection closed
 			if messageLen == 0 {
-				server.Broadcast(user, "See yall next time!")
+				user.offline()
 				return
 			}
 
@@ -72,7 +66,7 @@ func (server *Server) handleConnection(connection net.Conn) {
 				return
 			}
 			message := string(buffer[:messageLen-1])
-			server.Broadcast(user, message)
+			user.processMessage(message)
 		}
 	}()
 
