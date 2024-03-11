@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -51,13 +52,15 @@ func (server *Server) handleConnection(connection net.Conn) {
 
 	user.online()
 
+	isAlive := make(chan bool)
+
 	go func() {
 		buffer := make([]byte, 4096)
 		for {
 			messageLen, err := connection.Read(buffer)
 			// Connection closed
 			if messageLen == 0 {
-				user.offline()
+				user.offline(false)
 				return
 			}
 
@@ -67,10 +70,23 @@ func (server *Server) handleConnection(connection net.Conn) {
 			}
 			message := string(buffer[:messageLen-1])
 			user.processMessage(message)
+			isAlive <- true
 		}
 	}()
 
-	select {}
+	for {
+		select {
+		case <-isAlive:
+			// do nothing, fallthrough
+		case <-time.After(time.Second * 10):
+			// Remove user after idle time
+			user.offline(true)
+			time.Sleep(time.Second * 1)
+			close(user.Channel)
+			connection.Close()
+			return
+		}
+	}
 }
 
 func (server *Server) start() {
