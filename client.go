@@ -3,13 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net"
+	"os"
 )
 
 type Client struct {
 	ServerIp   string
 	ServerPort int
-	Name       string
 	Connection net.Conn
 	Choice     int
 }
@@ -30,6 +31,17 @@ func (cilent *Client) menu() bool {
 	}
 }
 
+func (client *Client) Rename() bool {
+	var name string
+	fmt.Println("You chose 3. Rename, please enter the new username")
+	fmt.Scanln(&name)
+	if _, err := client.Connection.Write([]byte("/rename|" + name + "\n")); err != nil {
+		fmt.Println("Rename failed:", err)
+		return false
+	}
+	return true
+}
+
 func (client *Client) Run() {
 	for client.Choice != 0 {
 		for !client.menu() {
@@ -39,9 +51,10 @@ func (client *Client) Run() {
 		case 1:
 			fallthrough // implement later
 		case 2:
-			fallthrough // implement later
-		case 3:
 			fmt.Println("Your choice is", client.Choice)
+			break
+		case 3:
+			client.Rename()
 			break
 		}
 	}
@@ -59,7 +72,6 @@ func NewClient(ip string, port int) *Client {
 		fmt.Println("net.Dial error:", err)
 		return nil
 	}
-	client.Name = connection.LocalAddr().String()
 	client.Connection = connection
 	return client
 }
@@ -79,8 +91,11 @@ func main() {
 		fmt.Println("Failed to start new client")
 		return
 	}
+	fmt.Println("Client started!")
 
-	fmt.Println("Client started! client name:", client.Name)
+	go func() {
+		io.Copy(os.Stdout, client.Connection)
+	}()
 
 	client.Run()
 }
