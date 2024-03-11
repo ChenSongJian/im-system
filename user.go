@@ -42,12 +42,16 @@ func (user *User) online() {
 
 }
 
-func (user *User) offline() {
+func (user *User) offline(idle bool) {
 	user.Server.MapLock.Lock()
 	// Removes user from map when user going offline
 	delete(user.Server.OnlineUserMap, user.Name)
 	user.Server.MapLock.Unlock()
-	user.Server.Broadcast(user, "See yall next time!")
+	if idle {
+		user.Channel <- "User idle for too long, connection closed"
+	} else {
+		user.Server.Broadcast(user, "See yall next time!")
+	}
 }
 
 func (user *User) processMessage(message string) {
