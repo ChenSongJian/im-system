@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"sync"
 )
@@ -55,6 +56,25 @@ func (server *Server) handleConnection(connection net.Conn) {
 
 	// Broadcast message
 	server.Broadcast(user, "Hello World!")
+
+	go func() {
+		buffer := make([]byte, 4096)
+		for {
+			messageLen, err := connection.Read(buffer)
+			// Connection closed
+			if messageLen == 0 {
+				server.Broadcast(user, "See yall next time!")
+				return
+			}
+
+			if err != nil && err != io.EOF {
+				fmt.Println("User connection Read error:", err)
+				return
+			}
+			message := string(buffer[:messageLen-1])
+			server.Broadcast(user, message)
+		}
+	}()
 
 	select {}
 }
