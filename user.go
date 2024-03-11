@@ -2,6 +2,7 @@ package main
 
 import (
 	"net"
+	"strings"
 )
 
 type User struct {
@@ -53,11 +54,24 @@ func (user *User) processMessage(message string) {
 	if message == "/online" {
 		user.Server.MapLock.Lock()
 		// Add new user into OnlineUserMap and store the user info
-		for key, _ := range user.Server.OnlineUserMap {
-			onlineUserMessage := "[" + key + "]" + key + ": is online"
+		for _, value := range user.Server.OnlineUserMap {
+			onlineUserMessage := "[" + value.Address + "]" + value.Name + ": is online"
 			user.Channel <- onlineUserMessage
 		}
 		user.Server.MapLock.Unlock()
+	} else if len(message) > 7 && message[:7] == "/rename" {
+		newName := strings.TrimSpace(message[7:])
+		user.Server.MapLock.Lock()
+		if _, ok := user.Server.OnlineUserMap[newName]; ok {
+			user.Channel <- "Username is in use, please try another name"
+		} else {
+			delete(user.Server.OnlineUserMap, user.Name)
+			user.Server.OnlineUserMap[newName] = user
+			user.Name = newName
+			user.Channel <- "Username updated, you are now " + newName
+		}
+		user.Server.MapLock.Unlock()
+
 	} else {
 		user.Server.Broadcast(user, message)
 	}
