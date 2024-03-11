@@ -78,7 +78,7 @@ func (server *Server) handleConnection(connection net.Conn) {
 		select {
 		case <-isAlive:
 			// do nothing, fallthrough
-		case <-time.After(time.Second * 10):
+		case <-time.After(time.Minute * 5):
 			// Remove user after idle time
 			user.offline(true)
 			time.Sleep(time.Second * 1)

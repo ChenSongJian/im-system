@@ -64,7 +64,12 @@ func (user *User) processMessage(message string) {
 		}
 		user.Server.MapLock.Unlock()
 	} else if len(message) > 7 && message[:7] == "/rename" {
-		newName := strings.TrimSpace(message[7:])
+		splitMessage := strings.Split(message, "|")
+		if len(splitMessage) != 2 {
+			user.Channel <- "Invalid format, try \"/rename|newName\" format"
+			return
+		}
+		newName := strings.TrimSpace(splitMessage[1])
 		user.Server.MapLock.Lock()
 		if _, ok := user.Server.OnlineUserMap[newName]; ok {
 			user.Channel <- "Username is in use, please try another name"
@@ -75,7 +80,24 @@ func (user *User) processMessage(message string) {
 			user.Channel <- "Username updated, you are now " + newName
 		}
 		user.Server.MapLock.Unlock()
-
+	} else if len(message) > 3 && message[:3] == "/to" {
+		splitMessage := strings.Split(message, "|")
+		if len(splitMessage) != 3 {
+			user.Channel <- "Invalid format, try \"/to|userA|messageABC\" format"
+			return
+		}
+		recipient := strings.TrimSpace(splitMessage[1])
+		directMessage := strings.TrimSpace(splitMessage[2])
+		if len(directMessage) == 0 {
+			user.Channel <- "Failed to send direct message: message is empty"
+		}
+		user.Server.MapLock.Lock()
+		if recipientInfo, ok := user.Server.OnlineUserMap[recipient]; !ok {
+			user.Channel <- "Failed to send direct message: recipient not exists"
+		} else {
+			recipientInfo.Channel <- "(DM)" + user.Name + ":" + directMessage
+		}
+		user.Server.MapLock.Unlock()
 	} else {
 		user.Server.Broadcast(user, message)
 	}
